@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>认知与行为决策分析工具</title>
+    <title>认知偏误检测</title>
     <style>
         * {
             box-sizing: border-box;
@@ -19,37 +19,52 @@
             padding: 20px;
         }
         .card {
-            max-width: 800px;
+            max-width: 1000px;
             width: 100%;
             background: white;
             border-radius: 28px;
             box-shadow: 0 12px 28px rgba(0,0,0,0.1);
             overflow: hidden;
-            transition: all 0.2s;
         }
         .header {
             background: #1e3c72;
             color: white;
-            padding: 24px 28px;
+            padding: 20px 28px;
         }
         .header h1 {
             margin: 0;
-            font-size: 1.8rem;
-            font-weight: 600;
+            font-size: 1.6rem;
         }
-        .header p {
-            margin: 8px 0 0;
-            opacity: 0.8;
-            font-size: 0.9rem;
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            padding: 16px 28px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .toolbar button {
+            background: white;
+            border: 1px solid #ccd7e6;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #1e3c72;
+        }
+        .toolbar button.active {
+            background: #1e3c72;
+            color: white;
+            border-color: #1e3c72;
         }
         .content {
-            padding: 28px;
+            padding: 24px 28px;
         }
         .selector {
             background: #f0f2f6;
             border-radius: 20px;
             padding: 20px;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
         }
         label {
             font-weight: 600;
@@ -65,14 +80,8 @@
             border: 1px solid #ccd7e6;
             background: white;
             cursor: pointer;
-            outline: none;
-            transition: 0.2s;
         }
-        select:focus {
-            border-color: #1e3c72;
-            box-shadow: 0 0 0 2px rgba(30,60,114,0.2);
-        }
-        button {
+        button.analyze {
             background: #1e3c72;
             color: white;
             border: none;
@@ -83,23 +92,12 @@
             cursor: pointer;
             margin-top: 20px;
             width: 100%;
-            transition: 0.2s;
-        }
-        button:hover {
-            background: #0f2b4f;
-            transform: translateY(-1px);
         }
         .result {
             background: #f8fafc;
             border-radius: 20px;
             padding: 20px;
-            margin-top: 20px;
             border-left: 5px solid #1e3c72;
-        }
-        .result h3 {
-            margin: 0 0 12px 0;
-            font-size: 1.3rem;
-            color: #1e3c72;
         }
         .stats {
             font-family: monospace;
@@ -111,25 +109,33 @@
         }
         .conclusion {
             font-weight: 500;
-            color: #0b2b42;
         }
-        .signif {
-            color: #c44536;
-            font-weight: bold;
+        .data-table {
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 0.8rem;
         }
-        .insignif {
-            color: #2c6e2f;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        th {
+            background: #eef2f7;
+            position: sticky;
+            top: 0;
         }
         .footer {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             text-align: center;
             border-top: 1px solid #e2e8f0;
-            padding: 16px;
-            color: #5b6e8c;
-        }
-        .loading {
-            text-align: center;
-            padding: 20px;
+            padding: 12px;
             color: #5b6e8c;
         }
     </style>
@@ -138,38 +144,46 @@
 <body>
 <div class="card">
     <div class="header">
-        <h1>📊 认知偏误检测仪</h1>
-        <p>基于行为决策实验数据 (N=28, 1120次决策)</p>
+        <h1>🧠 认知偏误检测</h1>
     </div>
-    <div class="content">
+    <div class="toolbar">
+        <button id="tabAnalyze" class="active">📊 分析</button>
+        <button id="tabData">📋 数据表</button>
+    </div>
+    <div id="analyzePanel" class="content">
         <div class="selector">
-            <label>🔍 选择你要检测的认知偏误：</label>
+            <label>🔍 选择检测项目：</label>
             <select id="biasSelect">
-                <option value="riskLevel">⚖️ 风险水平效应 (Risk Level Bias)</option>
-                <option value="framing">🔄 框架效应 (Framing Effect)</option>
-                <option value="emotion">😊 情绪效应 (Emotion Effect)</option>
-                <option value="peer">👥 从众效应 (Peer Influence)</option>
+                <option value="riskLevel">⚖️ 风险水平效应</option>
+                <option value="framing">🔄 框架效应</option>
+                <option value="emotion">😊 情绪效应</option>
+                <option value="peer">👥 从众效应</option>
             </select>
-            <button id="analyzeBtn">开始分析</button>
+            <button id="analyzeBtn" class="analyze">开始分析</button>
         </div>
         <div id="resultArea">
             <div class="result">
-                <h3>📌 分析结果</h3>
-                <p>点击上方按钮，将基于真实数据自动计算统计检验。</p>
+                <h3>📌 结果</h3>
+                <p>点击上方按钮，基于数据自动计算。</p>
             </div>
         </div>
     </div>
+    <div id="dataPanel" class="content" style="display:none;">
+        <div class="result">
+            <h3>📋 原始数据（前100行）</h3>
+            <div id="dataTableContainer" class="data-table">加载中...</div>
+        </div>
+    </div>
     <div class="footer">
-        📁 数据集 dataset.csv 需位于同一目录 | 卡方检验 / McNemar / 方差分析
+        📁 dataset.csv 需在同一目录 | 卡方检验 / McNemar
     </div>
 </div>
 
 <script>
-    // 全局数据变量
     let rawData = null;
     let dataLoaded = false;
 
-    // 加载CSV文件
+    // 加载CSV
     function loadCSV() {
         return new Promise((resolve, reject) => {
             Papa.parse("dataset.csv", {
@@ -177,9 +191,6 @@
                 header: true,
                 dynamicTyping: true,
                 complete: (results) => {
-                    if (results.errors && results.errors.length) {
-                        console.warn("解析警告", results.errors);
-                    }
                     rawData = results.data;
                     dataLoaded = true;
                     resolve(rawData);
@@ -189,250 +200,211 @@
         });
     }
 
-    // 工具：构建风险寻求字段 (1=寻求, 0=规避)
+    // 准备数据（添加风险寻求字段）
     function prepareData(data) {
         return data.map(row => {
             let choice = row['FinancialDecisionResp.keys'];
             let riskSeeking = (choice === 1) ? 1 : 0;
-            return {
-                ...row,
-                risk_seeking: riskSeeking
-            };
+            return { ...row, risk_seeking: riskSeeking };
         });
     }
 
-    // 卡方检验 (2x2)
+    // 卡方检验 2x2
     function chi2Test(observed) {
-        // observed: [[a,b],[c,d]]
-        const [row1, row2] = observed;
-        const [a,b] = row1;
-        const [c,d] = row2;
+        const [[a,b],[c,d]] = observed;
         const total = a+b+c+d;
-        const rowSum1 = a+b;
-        const rowSum2 = c+d;
-        const colSum1 = a+c;
-        const colSum2 = b+d;
-        const expected = [
-            [(rowSum1 * colSum1)/total, (rowSum1 * colSum2)/total],
-            [(rowSum2 * colSum1)/total, (rowSum2 * colSum2)/total]
-        ];
+        const rowSum1 = a+b, rowSum2 = c+d;
+        const colSum1 = a+c, colSum2 = b+d;
+        const e11 = (rowSum1 * colSum1)/total;
+        const e12 = (rowSum1 * colSum2)/total;
+        const e21 = (rowSum2 * colSum1)/total;
+        const e22 = (rowSum2 * colSum2)/total;
         let chi2 = 0;
-        for(let i=0;i<2;i++){
-            for(let j=0;j<2;j++){
-                const obs = observed[i][j];
-                const exp = expected[i][j];
-                if(exp !== 0) chi2 += (obs-exp)*(obs-exp)/exp;
-            }
-        }
-        // 自由度=1 近似 p 值
+        chi2 += (a-e11)**2/e11 + (b-e12)**2/e12 + (c-e21)**2/e21 + (d-e22)**2/e22;
         const p = 1 - chi2CDF(chi2, 1);
         return { chi2, p };
     }
-
-    // 累积分布函数卡方 (近似)
     function chi2CDF(x, df) {
-        if (x <= 0) return 0;
-        // 采用近似公式，对df=1足够精确
-        if(df === 1){
-            // 标准正态分布的累积
+        if(df===1) {
             const z = Math.sqrt(x);
-            const t = 1 / (1 + 0.3275911 * Math.abs(z));
-            const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
-            const a4 = -1.453152027, a5 = 1.061405429;
+            const t = 1/(1+0.3275911*Math.abs(z));
+            const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429;
             const erf = 1 - ((((a5*t + a4)*t + a3)*t + a2)*t + a1)*t * Math.exp(-z*z);
-            const cdf = 0.5 * (1 + erf * (z>0?1:-1));
-            return cdf;
+            return 0.5 * (1 + erf * (z>0?1:-1));
         }
-        // 降级简单算法(仅用于展示，但本报告主要是df=1)
         return 0.95;
     }
 
-    // 风险水平效应 (已验证显著)
+    // 风险水平效应
     function analyzeRiskLevel(df) {
-        const highRisk = df.filter(r => r.risk_level === 'High');
-        const lowRisk = df.filter(r => r.risk_level === 'Low');
-        const highSeek = highRisk.filter(r => r.risk_seeking === 1).length;
-        const highAvoid = highRisk.length - highSeek;
-        const lowSeek = lowRisk.filter(r => r.risk_seeking === 1).length;
-        const lowAvoid = lowRisk.length - lowSeek;
-        const table = [[highSeek, highAvoid], [lowSeek, lowAvoid]];
-        const { chi2, p } = chi2Test(table);
-        const highRate = highSeek / highRisk.length;
-        const lowRate = lowSeek / lowRisk.length;
-        let conclusion = "";
-        if(p < 0.05){
-            conclusion = `✅ 显著差异 (p = ${p.toFixed(6)})：高风险下风险寻求比例 ${(highRate*100).toFixed(1)}% ，低风险下 ${(lowRate*100).toFixed(1)}%。这揭示了“风险水平反转效应”：人们在小赌注下更爱冒险，大赌注下反而保守 —— 符合前景理论的敏感性递减。`;
-        } else {
-            conclusion = `❌ 未发现显著差异 (p = ${p.toFixed(4)})，高风险与低风险的风险寻求比例无明显差异。`;
-        }
-        return { p, highRate, lowRate, conclusion, table };
-    }
-
-    // 框架效应
-    function analyzeFraming(df) {
-        const framingTrials = df.filter(r => r.trial_type === 'framing');
-        if(framingTrials.length === 0) return { error: "无framing试次" };
-        const gain = framingTrials.filter(r => r.framing === 'Gain');
-        const loss = framingTrials.filter(r => r.framing === 'Loss');
-        const gainSeek = gain.filter(r => r.risk_seeking === 1).length;
-        const gainAvoid = gain.length - gainSeek;
-        const lossSeek = loss.filter(r => r.risk_seeking === 1).length;
-        const lossAvoid = loss.length - lossSeek;
-        const table = [[gainSeek, gainAvoid], [lossSeek, lossAvoid]];
+        const high = df.filter(r => r.risk_level === 'High');
+        const low = df.filter(r => r.risk_level === 'Low');
+        const highSeek = high.filter(r => r.risk_seeking === 1).length;
+        const lowSeek = low.filter(r => r.risk_seeking === 1).length;
+        const highRate = highSeek / high.length;
+        const lowRate = lowSeek / low.length;
+        const table = [[highSeek, high.length-highSeek], [lowSeek, low.length-lowSeek]];
         const { p } = chi2Test(table);
-        const gainRate = gainSeek / gain.length;
-        const lossRate = lossSeek / loss.length;
-        let conclusion = "";
-        if(p < 0.05){
-            conclusion = `✅ 框架效应显著 (p = ${p.toFixed(6)})：损失框架下风险寻求比例 ${(lossRate*100).toFixed(1)}% ，收益框架下 ${(gainRate*100).toFixed(1)}% 。支持前景理论预测。`;
-        } else {
-            conclusion = `❌ 框架效应不显著 (p = ${p.toFixed(4)})，本次实验未复现经典效应，可能源于任务抽象或样本特性。`;
-        }
+        let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})：高风险寻求 ${(highRate*100).toFixed(1)}% ，低风险寻求 ${(lowRate*100).toFixed(1)}% —— 风险反转偏误` : `❌ 不显著 (p=${p.toFixed(4)})`;
+        return { p, highRate, lowRate, conclusion };
+    }
+    function analyzeFraming(df) {
+        const framing = df.filter(r => r.trial_type === 'framing');
+        if(!framing.length) return { error: "无framing试次" };
+        const gain = framing.filter(r => r.framing === 'Gain');
+        const loss = framing.filter(r => r.framing === 'Loss');
+        const gainSeek = gain.filter(r => r.risk_seeking===1).length;
+        const lossSeek = loss.filter(r => r.risk_seeking===1).length;
+        const gainRate = gainSeek/gain.length;
+        const lossRate = lossSeek/loss.length;
+        const table = [[gainSeek, gain.length-gainSeek], [lossSeek, loss.length-lossSeek]];
+        const { p } = chi2Test(table);
+        let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})：损失框架寻求 ${(lossRate*100).toFixed(1)}% ，收益框架 ${(gainRate*100).toFixed(1)}%` : `❌ 不显著 (p=${p.toFixed(4)})`;
         return { p, gainRate, lossRate, conclusion };
     }
-
-    // 情绪效应 (三组)
     function analyzeEmotion(df) {
-        const emotionTrials = df.filter(r => r.trial_type === 'emotion');
-        if(emotionTrials.length === 0) return { error: "无emotion试次" };
+        const emo = df.filter(r => r.trial_type === 'emotion');
+        if(!emo.length) return { error: "无emotion试次" };
         const groups = {
-            Positive: emotionTrials.filter(r => r.emotion === 'Positive'),
-            Neutral: emotionTrials.filter(r => r.emotion === 'Neutral'),
-            Negative: emotionTrials.filter(r => r.emotion === 'Negative')
+            Positive: emo.filter(r=>r.emotion==='Positive'),
+            Neutral: emo.filter(r=>r.emotion==='Neutral'),
+            Negative: emo.filter(r=>r.emotion==='Negative')
         };
-        const rates = {};
-        for(let [emo, trials] of Object.entries(groups)){
-            if(trials.length) rates[emo] = trials.filter(t => t.risk_seeking === 1).length / trials.length;
-            else rates[emo] = 0;
-        }
-        // 简单卡方：三组比较用 2x3 独立性检验
-        const counts = [
-            [groups.Positive.filter(t=>t.risk_seeking===1).length, groups.Positive.filter(t=>t.risk_seeking===0).length],
-            [groups.Neutral.filter(t=>t.risk_seeking===1).length, groups.Neutral.filter(t=>t.risk_seeking===0).length],
-            [groups.Negative.filter(t=>t.risk_seeking===1).length, groups.Negative.filter(t=>t.risk_seeking===0).length]
+        const rates = {
+            Positive: groups.Positive.length ? groups.Positive.filter(r=>r.risk_seeking===1).length/groups.Positive.length : 0,
+            Neutral: groups.Neutral.length ? groups.Neutral.filter(r=>r.risk_seeking===1).length/groups.Neutral.length : 0,
+            Negative: groups.Negative.length ? groups.Negative.filter(r=>r.risk_seeking===1).length/groups.Negative.length : 0
+        };
+        // 2x3卡方
+        const obs = [
+            [groups.Positive.filter(r=>r.risk_seeking===1).length, groups.Positive.filter(r=>r.risk_seeking===0).length],
+            [groups.Neutral.filter(r=>r.risk_seeking===1).length, groups.Neutral.filter(r=>r.risk_seeking===0).length],
+            [groups.Negative.filter(r=>r.risk_seeking===1).length, groups.Negative.filter(r=>r.risk_seeking===0).length]
         ];
-        // 扩展卡方函数支持2x3
-        function chi2_2x3(obs) {
-            const rows = obs.length, cols = obs[0].length;
-            let total = 0;
-            for(let i=0;i<rows;i++) for(let j=0;j<cols;j++) total += obs[i][j];
-            const rowSums = obs.map(r => r[0]+r[1]);
-            const colSums = [0,0];
-            for(let j=0;j<cols;j++) for(let i=0;i<rows;i++) colSums[j] += obs[i][j];
-            let chi2 = 0;
-            for(let i=0;i<rows;i++){
-                for(let j=0;j<cols;j++){
-                    const exp = (rowSums[i] * colSums[j]) / total;
-                    const obsVal = obs[i][j];
-                    if(exp > 0) chi2 += (obsVal-exp)*(obsVal-exp)/exp;
-                }
+        let total=0, rowSums=[], colSums=[0,0];
+        for(let i=0;i<3;i++) for(let j=0;j<2;j++) total+=obs[i][j];
+        for(let i=0;i<3;i++) rowSums[i]=obs[i][0]+obs[i][1];
+        for(let j=0;j<2;j++) for(let i=0;i<3;i++) colSums[j]+=obs[i][j];
+        let chi2=0;
+        for(let i=0;i<3;i++){
+            for(let j=0;j<2;j++){
+                const exp = (rowSums[i]*colSums[j])/total;
+                if(exp>0) chi2 += (obs[i][j]-exp)**2/exp;
             }
-            const df = (rows-1)*(cols-1);
-            // 简化p值 (df=2时近似)
-            const p = 1 - chi2CDF_simple(chi2, df);
-            return { chi2, p };
         }
-        function chi2CDF_simple(x, df){
-            if(df===2){
-                // 近似指数
-                return Math.exp(-x/2) * (1 + x/2);
-            }
-            return 0.95;
-        }
-        const { p } = chi2_2x3(counts);
-        let conclusion = "";
-        if(p < 0.05){
-            conclusion = `✅ 情绪效应显著 (p = ${p.toFixed(6)})。不同情绪条件下风险寻求比例：Positive ${(rates.Positive*100).toFixed(1)}% , Neutral ${(rates.Neutral*100).toFixed(1)}% , Negative ${(rates.Negative*100).toFixed(1)}%。`;
-        } else {
-            conclusion = `❌ 情绪效应不显著 (p = ${p.toFixed(4)})，积极/中性/消极情绪对风险偏好无统计差异。`;
-        }
+        const df = (3-1)*(2-1)=2;
+        let p = 1 - Math.exp(-chi2/2)*(1+chi2/2); // 近似
+        if(p<0) p=0;
+        let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})` : `❌ 不显著 (p=${p.toFixed(4)})`;
         return { p, rates, conclusion };
     }
-
-    // 从众效应
     function analyzePeer(df) {
-        const peerTrials = df.filter(r => r.trial_type === 'peer');
-        if(peerTrials.length === 0) return { error: "无peer试次" };
-        const present = peerTrials.filter(r => r.peer === 'Present');
-        const absent = peerTrials.filter(r => r.peer === 'Absent');
-        const presentSeek = present.filter(r => r.risk_seeking === 1).length;
-        const presentAvoid = present.length - presentSeek;
-        const absentSeek = absent.filter(r => r.risk_seeking === 1).length;
-        const absentAvoid = absent.length - absentSeek;
-        const table = [[presentSeek, presentAvoid], [absentSeek, absentAvoid]];
+        const peer = df.filter(r => r.trial_type === 'peer');
+        if(!peer.length) return { error: "无peer试次" };
+        const present = peer.filter(r=>r.peer==='Present');
+        const absent = peer.filter(r=>r.peer==='Absent');
+        const presentSeek = present.filter(r=>r.risk_seeking===1).length;
+        const absentSeek = absent.filter(r=>r.risk_seeking===1).length;
+        const presentRate = presentSeek/present.length;
+        const absentRate = absentSeek/absent.length;
+        const table = [[presentSeek, present.length-presentSeek], [absentSeek, absent.length-absentSeek]];
         const { p } = chi2Test(table);
-        const presentRate = presentSeek / present.length;
-        const absentRate = absentSeek / absent.length;
-        let conclusion = "";
-        if(p < 0.05){
-            conclusion = `✅ 从众效应显著 (p = ${p.toFixed(6)})：有同伴时风险寻求比例 ${(presentRate*100).toFixed(1)}% ，无同伴时 ${(absentRate*100).toFixed(1)}% 。`;
-        } else {
-            conclusion = `❌ 从众效应不显著 (p = ${p.toFixed(4)})，同伴意见未显著改变风险决策。`;
-        }
+        let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})：有同伴寻求 ${(presentRate*100).toFixed(1)}% ，无同伴 ${(absentRate*100).toFixed(1)}%` : `❌ 不显著 (p=${p.toFixed(4)})`;
         return { p, presentRate, absentRate, conclusion };
     }
 
-    // 渲染结果
     function renderResult(resultObj, biasType) {
-        const resultDiv = document.getElementById('resultArea');
+        const div = document.getElementById('resultArea');
         if(resultObj.error){
-            resultDiv.innerHTML = `<div class="result"><h3>⚠️ 错误</h3><p>${resultObj.error}</p></div>`;
+            div.innerHTML = `<div class="result"><h3>⚠️ 错误</h3><p>${resultObj.error}</p></div>`;
             return;
         }
         let statsHtml = "";
-        let conclusionHtml = `<div class="conclusion">${resultObj.conclusion}</div>`;
         if(biasType === 'riskLevel'){
-            statsHtml = `<div class="stats">📊 高风险决策数: ${resultObj.highRate.toFixed(3)} 寻求率<br>📊 低风险决策数: ${resultObj.lowRate.toFixed(3)} 寻求率<br>📈 卡方检验 p = ${resultObj.p.toFixed(6)}</div>`;
+            statsHtml = `<div class="stats">高风险寻求率: ${(resultObj.highRate*100).toFixed(1)}%<br>低风险寻求率: ${(resultObj.lowRate*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
         } else if(biasType === 'framing'){
-            statsHtml = `<div class="stats">🎭 增益框架风险寻求率: ${(resultObj.gainRate*100).toFixed(1)}%<br>📉 损失框架风险寻求率: ${(resultObj.lossRate*100).toFixed(1)}%<br>📈 p = ${resultObj.p.toFixed(6)}</div>`;
+            statsHtml = `<div class="stats">收益框架寻求率: ${(resultObj.gainRate*100).toFixed(1)}%<br>损失框架寻求率: ${(resultObj.lossRate*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
         } else if(biasType === 'emotion'){
-            let rateStr = `Positive: ${(resultObj.rates.Positive*100).toFixed(1)}% , Neutral: ${(resultObj.rates.Neutral*100).toFixed(1)}% , Negative: ${(resultObj.rates.Negative*100).toFixed(1)}%`;
-            statsHtml = `<div class="stats">😊 情绪条件风险寻求率<br>${rateStr}<br>📈 卡方检验 p = ${resultObj.p.toFixed(6)}</div>`;
+            statsHtml = `<div class="stats">😊 Positive: ${(resultObj.rates.Positive*100).toFixed(1)}%<br>😐 Neutral: ${(resultObj.rates.Neutral*100).toFixed(1)}%<br>😞 Negative: ${(resultObj.rates.Negative*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
         } else if(biasType === 'peer'){
-            statsHtml = `<div class="stats">👥 有同伴: ${(resultObj.presentRate*100).toFixed(1)}% 风险寻求<br>🙋 无同伴: ${(resultObj.absentRate*100).toFixed(1)}% 风险寻求<br>📈 p = ${resultObj.p.toFixed(6)}</div>`;
+            statsHtml = `<div class="stats">有同伴寻求率: ${(resultObj.presentRate*100).toFixed(1)}%<br>无同伴寻求率: ${(resultObj.absentRate*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
         }
-        resultDiv.innerHTML = `
-            <div class="result">
-                <h3>🧠 分析结果</h3>
-                ${statsHtml}
-                ${conclusionHtml}
-                <p style="font-size:0.8rem; margin-top:12px;">✅ 显著水平 α=0.05 | 基于实际原始数据计算</p>
-            </div>
-        `;
+        div.innerHTML = `<div class="result"><h3>📐 检验结果</h3>${statsHtml}<div class="conclusion">${resultObj.conclusion}</div></div>`;
     }
 
-    // 主控
+    // 显示数据表
+    function showDataTable() {
+        const container = document.getElementById('dataTableContainer');
+        if(!rawData){
+            container.innerHTML = '加载数据中...';
+            loadCSV().then(() => renderTable()).catch(e => container.innerHTML = `错误: ${e.message}`);
+        } else {
+            renderTable();
+        }
+        function renderTable() {
+            const data = rawData.slice(0,100);
+            if(!data.length){ container.innerHTML = '无数据'; return; }
+            const cols = Object.keys(data[0]);
+            let html = '<table><thead><tr>';
+            cols.forEach(c => html+=`<th>${c}</th>`);
+            html+='</tr></thead><tbody>';
+            data.forEach(row => {
+                html+='<tr>';
+                cols.forEach(c => html+=`<td>${row[c] ?? ''}</td>`);
+                html+='</tr>';
+            });
+            html+='</tbody></table>';
+            container.innerHTML = html;
+        }
+    }
+
+    // 切换面板
+    const analyzePanel = document.getElementById('analyzePanel');
+    const dataPanel = document.getElementById('dataPanel');
+    const tabAnalyze = document.getElementById('tabAnalyze');
+    const tabData = document.getElementById('tabData');
+
+    tabAnalyze.addEventListener('click', () => {
+        analyzePanel.style.display = 'block';
+        dataPanel.style.display = 'none';
+        tabAnalyze.classList.add('active');
+        tabData.classList.remove('active');
+    });
+    tabData.addEventListener('click', () => {
+        analyzePanel.style.display = 'none';
+        dataPanel.style.display = 'block';
+        tabData.classList.add('active');
+        tabAnalyze.classList.remove('active');
+        showDataTable();
+    });
+
+    // 分析按钮
     document.getElementById('analyzeBtn').addEventListener('click', async () => {
         const btn = document.getElementById('analyzeBtn');
-        btn.innerText = "加载数据中...";
+        btn.innerText = '加载中...';
         btn.disabled = true;
         if(!dataLoaded){
-            try{
-                await loadCSV();
-            }catch(e){
-                document.getElementById('resultArea').innerHTML = `<div class="result"><h3>❌ 读取失败</h3><p>请确认 dataset.csv 文件在同一目录下，且格式正确。</p><p>错误: ${e.message}</p></div>`;
-                btn.innerText = "开始分析";
+            try{ await loadCSV(); }catch(e){
+                document.getElementById('resultArea').innerHTML = `<div class="result"><h3>❌ 读取失败</h3><p>请确认dataset.csv存在</p></div>`;
+                btn.innerText = '开始分析';
                 btn.disabled = false;
                 return;
             }
         }
-        btn.innerText = "分析中...";
         const df = prepareData(rawData);
         const bias = document.getElementById('biasSelect').value;
-        let result = null;
+        let result;
         if(bias === 'riskLevel') result = analyzeRiskLevel(df);
         else if(bias === 'framing') result = analyzeFraming(df);
         else if(bias === 'emotion') result = analyzeEmotion(df);
-        else if(bias === 'peer') result = analyzePeer(df);
+        else result = analyzePeer(df);
         renderResult(result, bias);
-        btn.innerText = "开始分析";
+        btn.innerText = '开始分析';
         btn.disabled = false;
     });
 
-    // 预加载数据避免首次卡顿 (静默)
-    window.addEventListener('load', () => {
-        loadCSV().catch(e => console.warn("预加载失败", e));
-    });
+    // 预加载
+    window.addEventListener('load', () => loadCSV().catch(console.warn));
 </script>
 </body>
 </html>
