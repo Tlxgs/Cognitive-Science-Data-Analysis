@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>认知偏误检测</title>
+    <title>认知偏误检测——《认知科学导论》课程作业演示</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <style>
         * {
             box-sizing: border-box;
@@ -144,7 +145,7 @@
 <body>
 <div class="card">
     <div class="header">
-        <h1>🧠 认知偏误检测</h1>
+        <h1>🧠 《认知科学导论》课程作业演示</h1>
     </div>
     <div class="toolbar">
         <button id="tabAnalyze" class="active">📊 分析</button>
@@ -174,237 +175,236 @@
             <div id="dataTableContainer" class="data-table">加载中...</div>
         </div>
     </div>
-    <div class="footer">
-        📁 dataset.csv 需在同一目录 | 卡方检验 / McNemar
-    </div>
 </div>
 
 <script>
-    let rawData = null;
-    let dataLoaded = false;
+    (function() {
+        let rawData = null;
+        let dataLoaded = false;
 
-    // 加载CSV
-    function loadCSV() {
-        return new Promise((resolve, reject) => {
-            Papa.parse("dataset.csv", {
-                download: true,
-                header: true,
-                dynamicTyping: true,
-                complete: (results) => {
-                    rawData = results.data;
-                    dataLoaded = true;
-                    resolve(rawData);
-                },
-                error: (err) => reject(err)
+        function loadCSV() {
+            return new Promise((resolve, reject) => {
+                Papa.parse("dataset.csv", {
+                    download: true,
+                    header: true,
+                    dynamicTyping: true,
+                    complete: (results) => {
+                        rawData = results.data;
+                        dataLoaded = true;
+                        resolve(rawData);
+                    },
+                    error: (err) => reject(err)
+                });
             });
-        });
-    }
-
-    // 准备数据（添加风险寻求字段）
-    function prepareData(data) {
-        return data.map(row => {
-            let choice = row['FinancialDecisionResp.keys'];
-            let riskSeeking = (choice === 1) ? 1 : 0;
-            return { ...row, risk_seeking: riskSeeking };
-        });
-    }
-
-    // 卡方检验 2x2
-    function chi2Test(observed) {
-        const [[a,b],[c,d]] = observed;
-        const total = a+b+c+d;
-        const rowSum1 = a+b, rowSum2 = c+d;
-        const colSum1 = a+c, colSum2 = b+d;
-        const e11 = (rowSum1 * colSum1)/total;
-        const e12 = (rowSum1 * colSum2)/total;
-        const e21 = (rowSum2 * colSum1)/total;
-        const e22 = (rowSum2 * colSum2)/total;
-        let chi2 = 0;
-        chi2 += (a-e11)**2/e11 + (b-e12)**2/e12 + (c-e21)**2/e21 + (d-e22)**2/e22;
-        const p = 1 - chi2CDF(chi2, 1);
-        return { chi2, p };
-    }
-    function chi2CDF(x, df) {
-        if(df===1) {
-            const z = Math.sqrt(x);
-            const t = 1/(1+0.3275911*Math.abs(z));
-            const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429;
-            const erf = 1 - ((((a5*t + a4)*t + a3)*t + a2)*t + a1)*t * Math.exp(-z*z);
-            return 0.5 * (1 + erf * (z>0?1:-1));
         }
-        return 0.95;
-    }
 
-    // 风险水平效应
-    function analyzeRiskLevel(df) {
-        const high = df.filter(r => r.risk_level === 'High');
-        const low = df.filter(r => r.risk_level === 'Low');
-        const highSeek = high.filter(r => r.risk_seeking === 1).length;
-        const lowSeek = low.filter(r => r.risk_seeking === 1).length;
-        const highRate = highSeek / high.length;
-        const lowRate = lowSeek / low.length;
-        const table = [[highSeek, high.length-highSeek], [lowSeek, low.length-lowSeek]];
-        const { p } = chi2Test(table);
-        let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})：高风险寻求 ${(highRate*100).toFixed(1)}% ，低风险寻求 ${(lowRate*100).toFixed(1)}% —— 风险反转偏误` : `❌ 不显著 (p=${p.toFixed(4)})`;
-        return { p, highRate, lowRate, conclusion };
-    }
-    function analyzeFraming(df) {
-        const framing = df.filter(r => r.trial_type === 'framing');
-        if(!framing.length) return { error: "无framing试次" };
-        const gain = framing.filter(r => r.framing === 'Gain');
-        const loss = framing.filter(r => r.framing === 'Loss');
-        const gainSeek = gain.filter(r => r.risk_seeking===1).length;
-        const lossSeek = loss.filter(r => r.risk_seeking===1).length;
-        const gainRate = gainSeek/gain.length;
-        const lossRate = lossSeek/loss.length;
-        const table = [[gainSeek, gain.length-gainSeek], [lossSeek, loss.length-lossSeek]];
-        const { p } = chi2Test(table);
-        let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})：损失框架寻求 ${(lossRate*100).toFixed(1)}% ，收益框架 ${(gainRate*100).toFixed(1)}%` : `❌ 不显著 (p=${p.toFixed(4)})`;
-        return { p, gainRate, lossRate, conclusion };
-    }
-    function analyzeEmotion(df) {
-        const emo = df.filter(r => r.trial_type === 'emotion');
-        if(!emo.length) return { error: "无emotion试次" };
-        const groups = {
-            Positive: emo.filter(r=>r.emotion==='Positive'),
-            Neutral: emo.filter(r=>r.emotion==='Neutral'),
-            Negative: emo.filter(r=>r.emotion==='Negative')
-        };
-        const rates = {
-            Positive: groups.Positive.length ? groups.Positive.filter(r=>r.risk_seeking===1).length/groups.Positive.length : 0,
-            Neutral: groups.Neutral.length ? groups.Neutral.filter(r=>r.risk_seeking===1).length/groups.Neutral.length : 0,
-            Negative: groups.Negative.length ? groups.Negative.filter(r=>r.risk_seeking===1).length/groups.Negative.length : 0
-        };
-        // 2x3卡方
-        const obs = [
-            [groups.Positive.filter(r=>r.risk_seeking===1).length, groups.Positive.filter(r=>r.risk_seeking===0).length],
-            [groups.Neutral.filter(r=>r.risk_seeking===1).length, groups.Neutral.filter(r=>r.risk_seeking===0).length],
-            [groups.Negative.filter(r=>r.risk_seeking===1).length, groups.Negative.filter(r=>r.risk_seeking===0).length]
-        ];
-        let total=0, rowSums=[], colSums=[0,0];
-        for(let i=0;i<3;i++) for(let j=0;j<2;j++) total+=obs[i][j];
-        for(let i=0;i<3;i++) rowSums[i]=obs[i][0]+obs[i][1];
-        for(let j=0;j<2;j++) for(let i=0;i<3;i++) colSums[j]+=obs[i][j];
-        let chi2=0;
-        for(let i=0;i<3;i++){
-            for(let j=0;j<2;j++){
-                const exp = (rowSums[i]*colSums[j])/total;
-                if(exp>0) chi2 += (obs[i][j]-exp)**2/exp;
+        function prepareData(data) {
+            return data.map(row => {
+                let choice = row['FinancialDecisionResp.keys'];
+                let riskSeeking = (choice === 1) ? 1 : 0;
+                return { ...row, risk_seeking: riskSeeking };
+            });
+        }
+
+        function chi2Test(observed) {
+            const [[a,b],[c,d]] = observed;
+            const total = a+b+c+d;
+            const rowSum1 = a+b, rowSum2 = c+d;
+            const colSum1 = a+c, colSum2 = b+d;
+            const e11 = (rowSum1 * colSum1)/total;
+            const e12 = (rowSum1 * colSum2)/total;
+            const e21 = (rowSum2 * colSum1)/total;
+            const e22 = (rowSum2 * colSum2)/total;
+            let chi2 = 0;
+            chi2 += (a-e11)**2/e11 + (b-e12)**2/e12 + (c-e21)**2/e21 + (d-e22)**2/e22;
+            const p = 1 - chi2CDF(chi2, 1);
+            return { chi2, p };
+        }
+
+        function chi2CDF(x, df) {
+            if(df===1) {
+                const z = Math.sqrt(x);
+                const t = 1/(1+0.3275911*Math.abs(z));
+                const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429;
+                const erf = 1 - ((((a5*t + a4)*t + a3)*t + a2)*t + a1)*t * Math.exp(-z*z);
+                return 0.5 * (1 + erf * (z>0?1:-1));
             }
+            return 0.95;
         }
-        const df = (3-1)*(2-1)=2;
-        let p = 1 - Math.exp(-chi2/2)*(1+chi2/2); // 近似
-        if(p<0) p=0;
-        let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})` : `❌ 不显著 (p=${p.toFixed(4)})`;
-        return { p, rates, conclusion };
-    }
-    function analyzePeer(df) {
-        const peer = df.filter(r => r.trial_type === 'peer');
-        if(!peer.length) return { error: "无peer试次" };
-        const present = peer.filter(r=>r.peer==='Present');
-        const absent = peer.filter(r=>r.peer==='Absent');
-        const presentSeek = present.filter(r=>r.risk_seeking===1).length;
-        const absentSeek = absent.filter(r=>r.risk_seeking===1).length;
-        const presentRate = presentSeek/present.length;
-        const absentRate = absentSeek/absent.length;
-        const table = [[presentSeek, present.length-presentSeek], [absentSeek, absent.length-absentSeek]];
-        const { p } = chi2Test(table);
-        let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})：有同伴寻求 ${(presentRate*100).toFixed(1)}% ，无同伴 ${(absentRate*100).toFixed(1)}%` : `❌ 不显著 (p=${p.toFixed(4)})`;
-        return { p, presentRate, absentRate, conclusion };
-    }
 
-    function renderResult(resultObj, biasType) {
-        const div = document.getElementById('resultArea');
-        if(resultObj.error){
-            div.innerHTML = `<div class="result"><h3>⚠️ 错误</h3><p>${resultObj.error}</p></div>`;
-            return;
+        function analyzeRiskLevel(data) {
+            const high = data.filter(r => r.risk_level === 'High');
+            const low = data.filter(r => r.risk_level === 'Low');
+            const highSeek = high.filter(r => r.risk_seeking === 1).length;
+            const lowSeek = low.filter(r => r.risk_seeking === 1).length;
+            const highRate = highSeek / high.length;
+            const lowRate = lowSeek / low.length;
+            const table = [[highSeek, high.length-highSeek], [lowSeek, low.length-lowSeek]];
+            const { p } = chi2Test(table);
+            let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})：高风险寻求 ${(highRate*100).toFixed(1)}% ，低风险寻求 ${(lowRate*100).toFixed(1)}% —— 风险反转偏误` : `❌ 不显著 (p=${p.toFixed(4)})`;
+            return { p, highRate, lowRate, conclusion };
         }
-        let statsHtml = "";
-        if(biasType === 'riskLevel'){
-            statsHtml = `<div class="stats">高风险寻求率: ${(resultObj.highRate*100).toFixed(1)}%<br>低风险寻求率: ${(resultObj.lowRate*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
-        } else if(biasType === 'framing'){
-            statsHtml = `<div class="stats">收益框架寻求率: ${(resultObj.gainRate*100).toFixed(1)}%<br>损失框架寻求率: ${(resultObj.lossRate*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
-        } else if(biasType === 'emotion'){
-            statsHtml = `<div class="stats">😊 Positive: ${(resultObj.rates.Positive*100).toFixed(1)}%<br>😐 Neutral: ${(resultObj.rates.Neutral*100).toFixed(1)}%<br>😞 Negative: ${(resultObj.rates.Negative*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
-        } else if(biasType === 'peer'){
-            statsHtml = `<div class="stats">有同伴寻求率: ${(resultObj.presentRate*100).toFixed(1)}%<br>无同伴寻求率: ${(resultObj.absentRate*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
+
+        function analyzeFraming(data) {
+            const framing = data.filter(r => r.trial_type === 'framing');
+            if(!framing.length) return { error: "无framing试次" };
+            const gain = framing.filter(r => r.framing === 'Gain');
+            const loss = framing.filter(r => r.framing === 'Loss');
+            const gainSeek = gain.filter(r => r.risk_seeking===1).length;
+            const lossSeek = loss.filter(r => r.risk_seeking===1).length;
+            const gainRate = gainSeek/gain.length;
+            const lossRate = lossSeek/loss.length;
+            const table = [[gainSeek, gain.length-gainSeek], [lossSeek, loss.length-lossSeek]];
+            const { p } = chi2Test(table);
+            let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})：损失框架寻求 ${(lossRate*100).toFixed(1)}% ，收益框架 ${(gainRate*100).toFixed(1)}%` : `❌ 不显著 (p=${p.toFixed(4)})`;
+            return { p, gainRate, lossRate, conclusion };
         }
-        div.innerHTML = `<div class="result"><h3>📐 检验结果</h3>${statsHtml}<div class="conclusion">${resultObj.conclusion}</div></div>`;
-    }
 
-    // 显示数据表
-    function showDataTable() {
-        const container = document.getElementById('dataTableContainer');
-        if(!rawData){
-            container.innerHTML = '加载数据中...';
-            loadCSV().then(() => renderTable()).catch(e => container.innerHTML = `错误: ${e.message}`);
-        } else {
-            renderTable();
+        function analyzeEmotion(data) {
+            const emo = data.filter(r => r.trial_type === 'emotion');
+            if(!emo.length) return { error: "无emotion试次" };
+            const groups = {
+                Positive: emo.filter(r=>r.emotion==='Positive'),
+                Neutral: emo.filter(r=>r.emotion==='Neutral'),
+                Negative: emo.filter(r=>r.emotion==='Negative')
+            };
+            const rates = {
+                Positive: groups.Positive.length ? groups.Positive.filter(r=>r.risk_seeking===1).length/groups.Positive.length : 0,
+                Neutral: groups.Neutral.length ? groups.Neutral.filter(r=>r.risk_seeking===1).length/groups.Neutral.length : 0,
+                Negative: groups.Negative.length ? groups.Negative.filter(r=>r.risk_seeking===1).length/groups.Negative.length : 0
+            };
+            const obs = [
+                [groups.Positive.filter(r=>r.risk_seeking===1).length, groups.Positive.filter(r=>r.risk_seeking===0).length],
+                [groups.Neutral.filter(r=>r.risk_seeking===1).length, groups.Neutral.filter(r=>r.risk_seeking===0).length],
+                [groups.Negative.filter(r=>r.risk_seeking===1).length, groups.Negative.filter(r=>r.risk_seeking===0).length]
+            ];
+            let total=0, rowSums=[], colSums=[0,0];
+            for(let i=0;i<3;i++) for(let j=0;j<2;j++) total+=obs[i][j];
+            for(let i=0;i<3;i++) rowSums[i]=obs[i][0]+obs[i][1];
+            for(let j=0;j<2;j++) for(let i=0;i<3;i++) colSums[j]+=obs[i][j];
+            let chi2=0;
+            for(let i=0;i<3;i++){
+                for(let j=0;j<2;j++){
+                    const exp = (rowSums[i]*colSums[j])/total;
+                    if(exp>0) chi2 += (obs[i][j]-exp)**2/exp;
+                }
+            }
+            const df = 2;
+            let p = 1 - Math.exp(-chi2/2)*(1+chi2/2);
+            if(p<0) p=0;
+            let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})` : `❌ 不显著 (p=${p.toFixed(4)})`;
+            return { p, rates, conclusion };
         }
-        function renderTable() {
-            const data = rawData.slice(0,100);
-            if(!data.length){ container.innerHTML = '无数据'; return; }
-            const cols = Object.keys(data[0]);
-            let html = '<table><thead><tr>';
-            cols.forEach(c => html+=`<th>${c}</th>`);
-            html+='</tr></thead><tbody>';
-            data.forEach(row => {
-                html+='<tr>';
-                cols.forEach(c => html+=`<td>${row[c] ?? ''}</td>`);
-                html+='</tr>';
-            });
-            html+='</tbody></table>';
-            container.innerHTML = html;
+
+        function analyzePeer(data) {
+            const peer = data.filter(r => r.trial_type === 'peer');
+            if(!peer.length) return { error: "无peer试次" };
+            const present = peer.filter(r=>r.peer==='Present');
+            const absent = peer.filter(r=>r.peer==='Absent');
+            const presentSeek = present.filter(r=>r.risk_seeking===1).length;
+            const absentSeek = absent.filter(r=>r.risk_seeking===1).length;
+            const presentRate = presentSeek/present.length;
+            const absentRate = absentSeek/absent.length;
+            const table = [[presentSeek, present.length-presentSeek], [absentSeek, absent.length-absentSeek]];
+            const { p } = chi2Test(table);
+            let conclusion = p<0.05 ? `✅ 显著 (p=${p.toFixed(6)})：有同伴寻求 ${(presentRate*100).toFixed(1)}% ，无同伴 ${(absentRate*100).toFixed(1)}%` : `❌ 不显著 (p=${p.toFixed(4)})`;
+            return { p, presentRate, absentRate, conclusion };
         }
-    }
 
-    // 切换面板
-    const analyzePanel = document.getElementById('analyzePanel');
-    const dataPanel = document.getElementById('dataPanel');
-    const tabAnalyze = document.getElementById('tabAnalyze');
-    const tabData = document.getElementById('tabData');
-
-    tabAnalyze.addEventListener('click', () => {
-        analyzePanel.style.display = 'block';
-        dataPanel.style.display = 'none';
-        tabAnalyze.classList.add('active');
-        tabData.classList.remove('active');
-    });
-    tabData.addEventListener('click', () => {
-        analyzePanel.style.display = 'none';
-        dataPanel.style.display = 'block';
-        tabData.classList.add('active');
-        tabAnalyze.classList.remove('active');
-        showDataTable();
-    });
-
-    // 分析按钮
-    document.getElementById('analyzeBtn').addEventListener('click', async () => {
-        const btn = document.getElementById('analyzeBtn');
-        btn.innerText = '加载中...';
-        btn.disabled = true;
-        if(!dataLoaded){
-            try{ await loadCSV(); }catch(e){
-                document.getElementById('resultArea').innerHTML = `<div class="result"><h3>❌ 读取失败</h3><p>请确认dataset.csv存在</p></div>`;
-                btn.innerText = '开始分析';
-                btn.disabled = false;
+        function renderResult(resultObj, biasType) {
+            const div = document.getElementById('resultArea');
+            if(resultObj.error){
+                div.innerHTML = `<div class="result"><h3>⚠️ 错误</h3><p>${resultObj.error}</p></div>`;
                 return;
             }
+            let statsHtml = "";
+            if(biasType === 'riskLevel'){
+                statsHtml = `<div class="stats">高风险寻求率: ${(resultObj.highRate*100).toFixed(1)}%<br>低风险寻求率: ${(resultObj.lowRate*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
+            } else if(biasType === 'framing'){
+                statsHtml = `<div class="stats">收益框架寻求率: ${(resultObj.gainRate*100).toFixed(1)}%<br>损失框架寻求率: ${(resultObj.lossRate*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
+            } else if(biasType === 'emotion'){
+                statsHtml = `<div class="stats">😊 Positive: ${(resultObj.rates.Positive*100).toFixed(1)}%<br>😐 Neutral: ${(resultObj.rates.Neutral*100).toFixed(1)}%<br>😞 Negative: ${(resultObj.rates.Negative*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
+            } else if(biasType === 'peer'){
+                statsHtml = `<div class="stats">有同伴寻求率: ${(resultObj.presentRate*100).toFixed(1)}%<br>无同伴寻求率: ${(resultObj.absentRate*100).toFixed(1)}%<br>p = ${resultObj.p.toFixed(6)}</div>`;
+            }
+            div.innerHTML = `<div class="result"><h3>📐 检验结果</h3>${statsHtml}<div class="conclusion">${resultObj.conclusion}</div></div>`;
         }
-        const df = prepareData(rawData);
-        const bias = document.getElementById('biasSelect').value;
-        let result;
-        if(bias === 'riskLevel') result = analyzeRiskLevel(df);
-        else if(bias === 'framing') result = analyzeFraming(df);
-        else if(bias === 'emotion') result = analyzeEmotion(df);
-        else result = analyzePeer(df);
-        renderResult(result, bias);
-        btn.innerText = '开始分析';
-        btn.disabled = false;
-    });
 
-    // 预加载
-    window.addEventListener('load', () => loadCSV().catch(console.warn));
+        function showDataTable() {
+            const container = document.getElementById('dataTableContainer');
+            if(!rawData){
+                container.innerHTML = '加载数据中...';
+                loadCSV().then(() => renderTable()).catch(e => container.innerHTML = `错误: ${e.message}`);
+            } else {
+                renderTable();
+            }
+            function renderTable() {
+                const dataSlice = rawData.slice(0,100);
+                if(!dataSlice.length){ container.innerHTML = '无数据'; return; }
+                const cols = Object.keys(dataSlice[0]);
+                let html = '<table><thead><tr>';
+                cols.forEach(c => html+=`<th>${c}</th>`);
+                html+='</thead><tbody>';
+                dataSlice.forEach(row => {
+                    html+='<tr>';
+                    cols.forEach(c => html+=`<td>${row[c] ?? ''}</td>`);
+                    html+='</tr>';
+                });
+                html+='</tbody></table>';
+                container.innerHTML = html;
+            }
+        }
+
+        // 切换面板
+        const analyzePanel = document.getElementById('analyzePanel');
+        const dataPanel = document.getElementById('dataPanel');
+        const tabAnalyze = document.getElementById('tabAnalyze');
+        const tabData = document.getElementById('tabData');
+
+        tabAnalyze.addEventListener('click', () => {
+            analyzePanel.style.display = 'block';
+            dataPanel.style.display = 'none';
+            tabAnalyze.classList.add('active');
+            tabData.classList.remove('active');
+        });
+        tabData.addEventListener('click', () => {
+            analyzePanel.style.display = 'none';
+            dataPanel.style.display = 'block';
+            tabData.classList.add('active');
+            tabAnalyze.classList.remove('active');
+            showDataTable();
+        });
+
+        // 分析按钮事件
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        analyzeBtn.addEventListener('click', async () => {
+            analyzeBtn.innerText = '加载中...';
+            analyzeBtn.disabled = true;
+            if(!dataLoaded){
+                try{
+                    await loadCSV();
+                }catch(e){
+                    document.getElementById('resultArea').innerHTML = `<div class="result"><h3>❌ 读取失败</h3><p>请确认dataset.csv存在</p></div>`;
+                    analyzeBtn.innerText = '开始分析';
+                    analyzeBtn.disabled = false;
+                    return;
+                }
+            }
+            const processed = prepareData(rawData);
+            const bias = document.getElementById('biasSelect').value;
+            let result;
+            if(bias === 'riskLevel') result = analyzeRiskLevel(processed);
+            else if(bias === 'framing') result = analyzeFraming(processed);
+            else if(bias === 'emotion') result = analyzeEmotion(processed);
+            else result = analyzePeer(processed);
+            renderResult(result, bias);
+            analyzeBtn.innerText = '开始分析';
+            analyzeBtn.disabled = false;
+        });
+
+        // 预加载
+        window.addEventListener('load', () => loadCSV().catch(console.warn));
+    })();
 </script>
 </body>
 </html>
